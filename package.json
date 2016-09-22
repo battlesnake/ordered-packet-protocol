@@ -1,0 +1,19 @@
+{
+  "name": "order-preserving-protocol",
+  "version": "0.0.1",
+  "description": "Order-preserving packet-orientated protocol",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@git.open-cosmos.com:ordered-packet-protocol.git"
+  },
+  "author": "Mark K Cowan",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "lodash": "^4.16.1"
+  }
+}
