@@ -1,6 +1,7 @@
 const EventEmitter = require('events').EventEmitter;
 const _ = require('lodash');
 
+const ReorderBuffer = require('./reorder-buffer');
 const Connection = require('./connection');
 
 module.exports = Server;
@@ -17,8 +18,8 @@ const defaultOpts = { };
  *  * write(packet) - Write a packet received from the next layer
  *
  * Events:
- * 	* accept(connection) - A new connection was receieved
- * 	* send(data) - Send a packet to the next layer
+ *  * accept(connection) - A new connection was receieved
+ *  * send(data) - Send a packet to the next layer
  */
 
 function Server(opts) {
@@ -46,7 +47,11 @@ function Server(opts) {
 		connections.splice(idx, 1);
 	};
 
-	const write = data => {
+	const write = packet => {
+		if (!packet) {
+			return;
+		}
+		const data = ReorderBuffer.peek(packet);
 		/* Packet must have correct port set */
 		if (!data || data.port !== port) {
 			return;
@@ -54,19 +59,20 @@ function Server(opts) {
 		/* Pass packet to client connection if appropriate */
 		if (data.cookie && data.type !== 'syn') {
 			const con = conGet(data.cookie);
-			return con && con.write(data);
+			return con && con.write(packet);
 		}
-		/* Server must be active and packet must be SYN */
-		if (!active || data.type !== 'syn') {
+		/* Server must be active and packet must be SYN and first of sequence */
+		if (!active || data.type !== 'syn' || !ReorderBuffer.isFirst(packet)) {
 			return;
 		}
 		/* Create connection if no connection with that cookie exists */
 		const { keepAliveInterval, idleTimeout, cookie } = data;
 		if (conGet(cookie)) {
-			return;
+			throw new Error('Duplicate connection key');
 		}
 		const con = new Connection({ cookie, keepAliveInterval, idleTimeout });
 		connections.push(con);
+		/* TODO: Remove listeners on connection close */
 		con.on('close', () => conClosed(cookie));
 		con.on('error', err => {
 			if (con.getState !== 'open') {
@@ -74,6 +80,7 @@ function Server(opts) {
 			}
 		});
 		con.on('send', packet => this.emit('send', packet));
+		con.write(packet);
 		this.emit('accept', con);
 	};
 

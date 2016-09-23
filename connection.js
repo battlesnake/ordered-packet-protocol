@@ -1,6 +1,8 @@
 const EventEmitter = require('events').EventEmitter;
 const _ = require('lodash');
 
+const ReorderBuffer = require('./reorder-buffer');
+
 module.exports = Connection;
 
 Connection.prototype = new EventEmitter();
@@ -14,7 +16,12 @@ const defaultOpts = {
 };
 
 /*
- * 3-way handshake very loosely based on TCP connection.
+ * Uses ReorderBuffer to recover original order of packets.
+ *
+ * Implements 3-way handshake very loosely based on TCP connection.
+ *
+ * Intentionally does not handle packet-loss or duplicates.
+ *
  * Regarding TCP though:
  *  * Re-ordering is done by ReorderBuffer.
  *  * Fragmentation and retransmission is not necessary so is not implemented.
@@ -41,7 +48,9 @@ function Connection(opts) {
 
 	const { port, connectTimeout, keepAliveInterval, idleTimeout } = opts;
 
-	const cookie = opts.cookie || randomKey(40);
+	const isServer = !!opts.cookie;
+
+	const cookie = isServer ? opts.cookie : randomKey(40);
 
 	if (!cookie && typeof port !== 'string') {
 		throw new Error('Port must be a string');
@@ -53,9 +62,11 @@ function Connection(opts) {
 	let idleTimeoutTimer = null;
 	let keepAliveTimer = null;
 
-	const setState = newState => {
-		state = newState;
-	};
+	/* Buffer for re-ordering received packets and sequencing sent packets */
+	const rob = new ReorderBuffer();
+
+	/* Use this when changing connection state (so we can debug state changes easily */
+	const setState = newState => state = newState;
 
 	/* Timer for establishing connection */
 	const connectTimedOut = () => {
@@ -103,17 +114,17 @@ function Connection(opts) {
 
 	/* Send a packet */
 	const transmit = (type, data) => {
-		if (state !== 'closed') {
-			this.emit('send', { port, type, cookie, data });
+		if (state === 'closed') {
+			return;
 		}
+		rob.send({ port, type, cookie, data });
 	};
 
 	/* Open the connection */
-	const open = mode => {
+	const open = () => {
 		setConnectionTimer();
-		switch (mode) {
-		case 'server': return transmit('ack');
-		case 'client': return transmit('syn', { keepAliveInterval, idleTimeout });
+		if (!isServer) {
+			transmit('syn', { keepAliveInterval, idleTimeout });
 		}
 	};
 
@@ -136,7 +147,6 @@ function Connection(opts) {
 			return;
 		}
 		setState('open');
-		transmit('ack');
 		clearConnectionTimer();
 		resetIdleTimer();
 		startKeepAlive();
@@ -145,28 +155,49 @@ function Connection(opts) {
 
 	/* Receive a packet */
 	const write = data => {
-		if (data.cookie !== cookie || state === 'closed') {
+		if (ReorderBuffer.peek(data).cookie !== cookie || state === 'closed') {
 			return;
 		}
-		resetIdleTimer();
+		rob.write(data);
+	};
+
+	/* Bind re-order buffer events */
+	rob.on('message', data => {
+		const type = data.type;
 		if (state === 'opening') {
-			switch (data.type) {
-			case 'synack': return opened();
-			case 'ack': return transmit('synack'), opened();
+			if (isServer) {
+				switch (type) {
+				case 'syn': return transmit('synack');
+				case 'ack': return opened();
+				}
+			} else {
+				switch (type) {
+				case 'synack': return transmit('ack'), opened();
+				}
 			}
 		} else if (state === 'open') {
-			switch (data.type) {
+			resetIdleTimer();
+			switch (type) {
 			case 'ack': return;
 			case 'fin': return close();
 			case 'data': return this.emit('message', data.data);
 			}
 		}
 		console.warn('Unexpected/unknown packet type: ' + data.type);
-	};
+	});
+
+	rob.on('send', data => {
+		this.emit('send', data);
+	});
+
+	rob.on('error', err => {
+		close();
+		this.emit('error', err);
+	});
 
 	const send = data => transmit('data', data);
 
-	process.nextTick(() => open(opts.cookie ? 'server' : 'client'));
+	process.nextTick(open);
 
 	this.getState = () => state;
 	this.getCookie = () => cookie;

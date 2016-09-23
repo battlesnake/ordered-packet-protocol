@@ -89,3 +89,7 @@ function ReorderBuffer(opts) {
 	this.send = send;
 	this.write = write;
 }
+
+ReorderBuffer.isFirst = packet => packet.seq === 0;
+
+ReorderBuffer.peek = packet => typeof packet.seq === 'number' ? packet.data : undefined;
