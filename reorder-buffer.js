@@ -66,6 +66,9 @@ function ReorderBuffer(opts) {
 		pending++;
 		if (pending >= maxPending) {
 			rob.length = 0;
+			if (this.debug) {
+				console.error('ROB: Too many pending packets');
+			}
 			this.emit('error', new Error('Too many pending packets'));
 			this.emit('close');
 			return;
