@@ -28,4 +28,5 @@ function bindOneToOne(l, r) {
 	l.on('message', data => r.write(data));
 	r.on('send', packet => l.send(packet));
 	l.on('error', err => r.emit(err));
+	l.on('close', () => r.close && r.close());
 }
