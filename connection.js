@@ -9,8 +9,8 @@ let con_id = 0;
 
 const defaultOpts = {
 	connectTimeout: 2000,
-	keepAliveInterval: 10000,
-	idleTimeout: 15000
+	keepAliveInterval: 1000,
+	idleTimeout: 10000
 };
 
 /*
@@ -20,10 +20,10 @@ const defaultOpts = {
  *  * Fragmentation and retransmission is not necessary so is not implemented.
  *
  * Methods:
- * 	* getState() - Get state of connection (opening/open/closed/failed)
- * 	* getCookie() - Get connection cookie
- * 	* send(data) - Send data through connection to next layer
- * 	* write(packet) - Write received packet received from next layer
+ *  * getState() - Get state of connection (opening/open/closed/failed)
+ *  * getCookie() - Get connection cookie
+ *  * send(data) - Send data through connection to next layer
+ *  * write(packet) - Write received packet received from next layer
  *
  * Events:
  *  * send(packet) - Transmit a packet to the next layer
@@ -79,7 +79,7 @@ function Connection(opts) {
 		if (state !== 'open') {
 			return;
 		}
-		setState('failed');
+		close();
 		const err = new Error('Session timeout');
 		this.emit('error', err);
 	};
