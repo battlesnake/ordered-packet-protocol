@@ -68,7 +68,8 @@ function Connection(opts) {
 	/* Use this when changing connection state (so we can debug state changes easily */
 	const setState = newState => state = newState;
 
-	/* Timer for establishing connection */
+	/* Connection timeout */
+
 	const connectTimedOut = () => {
 		if (state !== 'opening') {
 			return;
@@ -85,7 +86,8 @@ function Connection(opts) {
 		connectTimeoutTimer = setTimeout(connectTimedOut, connectTimeout);
 	};
 
-	/* No packet received in idle timeout interval */
+	/* Idle timeout */
+
 	const idleTimedOut = () => {
 		if (state !== 'open') {
 			return;
@@ -161,6 +163,14 @@ function Connection(opts) {
 		rob.write(data);
 	};
 
+	/* Send some data */
+	const send = data => {
+		if (state !== 'open') {
+			return this.emit('error', 'Attempted to send data while connection is not open');
+		}
+		transmit('data', data);
+	};
+
 	/* Bind re-order buffer events */
 	rob.on('message', data => {
 		const type = data.type;
@@ -195,15 +205,13 @@ function Connection(opts) {
 		this.emit('error', err);
 	});
 
-	const send = data => transmit('data', data);
-
-	process.nextTick(open);
-
 	this.getState = () => state;
 	this.getCookie = () => cookie;
 	this.send = send;
 	this.write = write;
 	this.close = close;
+
+	process.nextTick(open);
 }
 
 /* Helper functions for cookie generation */

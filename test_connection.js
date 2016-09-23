@@ -1,6 +1,5 @@
 const Server = require('./server');
 const Client = require('./client');
-const bind = require('./bind');
 
 const onError = err => (console.error(err), process.exit(0));
 

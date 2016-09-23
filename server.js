@@ -80,8 +80,8 @@ function Server(opts) {
 			}
 		});
 		con.on('send', packet => this.emit('send', packet));
+		con.on('open', () => this.emit('accept', con));
 		con.write(packet);
-		this.emit('accept', con);
 	};
 
 	const start = () => {
