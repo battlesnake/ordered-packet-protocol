@@ -1,7 +1,7 @@
 const ReorderBuffer = require('./reorder-buffer');
 
 function test_one(message) {
-	const buf = new ReorderBuffer();
+	const buf = new ReorderBuffer({ maxPending: 100 });
 	/* Loop back */
 	buf.on('send', packet =>
 		setTimeout(() => buf.write(packet), Math.random() * 100));

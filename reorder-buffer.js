@@ -19,7 +19,7 @@ ReorderBuffer.prototype = new EventEmitter();
 function ReorderBuffer(opts) {
 	EventEmitter.call(this);
 
-	opts = _.assign({ maxPending: 100, seq_wrap: 0x10000 }, opts);
+	opts = _.assign({ maxPending: 20, seq_wrap: 0x10000 }, opts);
 
 	const { maxPending, seq_wrap } = opts;
 
@@ -56,7 +56,6 @@ function ReorderBuffer(opts) {
 	const write = wrapped => {
 		const seq = wrapped.seq;
 		if (typeof seq !== 'number') {
-			this.emit('error', new Error('Invalid sequence number'));
 			return;
 		}
 		if (seq_notBefore(rx_seq, seq)) {
@@ -68,6 +67,7 @@ function ReorderBuffer(opts) {
 		if (pending >= maxPending) {
 			rob.length = 0;
 			this.emit('error', new Error('Too many pending packets'));
+			this.emit('close');
 			return;
 		}
 		if (seq === rx_seq) {
@@ -78,6 +78,8 @@ function ReorderBuffer(opts) {
 				pending--;
 				this.emit('message', packet);
 			} while (rob[rx_seq] !== undefined);
+		} else if (this.debug) {
+			console.info('ROB: ' + pending + ' packets pending');
 		}
 	};
 
