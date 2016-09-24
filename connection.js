@@ -10,9 +10,9 @@ Connection.prototype = new EventEmitter();
 let con_id = 0;
 
 const defaultOpts = {
-	connectTimeout: 2000,
-	keepAliveInterval: 1000,
-	idleTimeout: 10000
+	connectTimeout: 10000,
+	keepAliveInterval: 5000,
+	idleTimeout: 15000
 };
 
 /*
