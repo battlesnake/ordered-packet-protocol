@@ -19,7 +19,7 @@ const defaultOpts = { };
  *
  * Events:
  *  * accept(connection, data) - A new connection was receieved
- *  * send(data) - Send a packet to the next layer
+ *  * send(data, connection) - Send a packet to the next layer
  */
 
 function Server(opts) {
@@ -79,7 +79,7 @@ function Server(opts) {
 				conClosed(cookie);
 			}
 		});
-		con.on('send', packet => this.emit('send', packet));
+		con.on('send', packet => this.emit('send', packet, con));
 		con.on('open', data => this.emit('accept', con, data));
 		con.write(packet);
 	};
