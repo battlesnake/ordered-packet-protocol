@@ -7,8 +7,6 @@ module.exports = Connection;
 
 Connection.prototype = new EventEmitter();
 
-let con_id = 0;
-
 const defaultOpts = {
 	connectTimeout: 10000,
 	keepAliveInterval: 5000,
@@ -34,6 +32,9 @@ const defaultOpts = {
  *    * idleTimeout - close if no packets are received for this interval
  *  * data: some data a client can send when opening a connection
  *
+ * Properties:
+ * 	* metadata - User-defined metadata for the connection, default: {}
+ *
  * Methods:
  *  * getState() - Get state of connection (opening/open/closed/failed)
  *  * getCookie() - Get connection cookie
@@ -49,8 +50,6 @@ const defaultOpts = {
 
 function Connection(opts, data) {
 	EventEmitter.call(this);
-
-	const id = ++con_id;
 
 	opts = _.defaults({}, opts, defaultOpts);
 
@@ -225,6 +224,8 @@ function Connection(opts, data) {
 	this.send = send;
 	this.write = write;
 	this.close = close;
+
+	this.metadata = {};
 
 	process.nextTick(open);
 }
