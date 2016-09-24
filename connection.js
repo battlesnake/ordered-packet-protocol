@@ -26,6 +26,13 @@ const defaultOpts = {
  *  * Re-ordering is done by ReorderBuffer.
  *  * Fragmentation and retransmission is not necessary so is not implemented.
  *
+ * Constructor: Connection([opts])
+ *  * opts:
+ *    * port - a string identifying the service to connect to
+ *    * connectTimeout - timeout for connection to complete
+ *    * keepAliveInterval - how often to send keep-alive packets
+ *    * idleTimeout - close if no packets are received for this interval
+ *
  * Methods:
  *  * getState() - Get state of connection (opening/open/closed/failed)
  *  * getCookie() - Get connection cookie
