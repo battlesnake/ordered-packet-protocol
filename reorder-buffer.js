@@ -92,4 +92,9 @@ function ReorderBuffer(opts) {
 
 ReorderBuffer.isFirst = packet => packet.seq === 0;
 
-ReorderBuffer.peek = packet => typeof packet.seq === 'number' ? packet.data : undefined;
+ReorderBuffer.peek = packet => {
+	if (typeof packet.seq !== 'number') {
+		throw new Error('Not a valid packet');
+	}
+	return packet.data;
+};

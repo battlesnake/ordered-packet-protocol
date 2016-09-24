@@ -26,12 +26,13 @@ const defaultOpts = {
  *  * Re-ordering is done by ReorderBuffer.
  *  * Fragmentation and retransmission is not necessary so is not implemented.
  *
- * Constructor: Connection([opts])
+ * Constructor: Connection([opts], [data])
  *  * opts:
  *    * port - a string identifying the service to connect to
  *    * connectTimeout - timeout for connection to complete
  *    * keepAliveInterval - how often to send keep-alive packets
  *    * idleTimeout - close if no packets are received for this interval
+ *  * data: some data a client can send when opening a connection
  *
  * Methods:
  *  * getState() - Get state of connection (opening/open/closed/failed)
@@ -42,11 +43,11 @@ const defaultOpts = {
  * Events:
  *  * send(packet) - Transmit a packet to the next layer
  *  * message(data) - Receive data from connection
- *  * open() - Connection is now open
+ *  * open(data) - Connection is now open
  *  * close() - Connection is now closed
  */
 
-function Connection(opts) {
+function Connection(opts, data) {
 	EventEmitter.call(this);
 
 	const id = ++con_id;
@@ -133,7 +134,7 @@ function Connection(opts) {
 	const open = () => {
 		setConnectionTimer();
 		if (!isServer) {
-			transmit('syn', { keepAliveInterval, idleTimeout });
+			transmit('syn', { keepAliveInterval, idleTimeout, data });
 		}
 	};
 
@@ -151,7 +152,7 @@ function Connection(opts) {
 	};
 
 	/* Called when connection has been established */
-	const opened = () => {
+	const opened = data => {
 		if (state !== 'opening') {
 			return;
 		}
@@ -159,7 +160,7 @@ function Connection(opts) {
 		clearConnectionTimer();
 		resetIdleTimer();
 		startKeepAlive();
-		this.emit('open');
+		this.emit('open', data);
 	};
 
 	/* Receive a packet */
@@ -178,14 +179,21 @@ function Connection(opts) {
 		transmit('data', data);
 	};
 
+	let opendata;
+
 	/* Bind re-order buffer events */
 	rob.on('message', data => {
 		const type = data.type;
 		if (state === 'opening') {
 			if (isServer) {
 				switch (type) {
-				case 'syn': return transmit('synack');
-				case 'ack': return opened();
+				case 'syn':
+					opendata = data.data;
+					return transmit('synack');
+				case 'ack':
+					const _opendata = opendata;
+					opendata = null;
+					return opened(_opendata);
 				}
 			} else {
 				switch (type) {
@@ -220,6 +228,22 @@ function Connection(opts) {
 
 	process.nextTick(open);
 }
+
+/* Peek at the data in an encoded packet */
+Connection.peek = packet => {
+	if (!packet) {
+		throw new Error('Not a valid packet');
+	}
+	const a = ReorderBuffer.peek(packet);
+	if (!a) {
+		throw new Error('Not a valid packet');
+	}
+	if (a.type === 'data') {
+		return a.data;
+	} else {
+		return;
+	}
+};
 
 /* Helper functions for cookie generation */
 

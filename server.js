@@ -18,7 +18,7 @@ const defaultOpts = { };
  *  * write(packet) - Write a packet received from the next layer
  *
  * Events:
- *  * accept(connection) - A new connection was receieved
+ *  * accept(connection, data) - A new connection was receieved
  *  * send(data) - Send a packet to the next layer
  */
 
@@ -80,7 +80,7 @@ function Server(opts) {
 			}
 		});
 		con.on('send', packet => this.emit('send', packet));
-		con.on('open', () => this.emit('accept', con));
+		con.on('open', data => this.emit('accept', con, data));
 		con.write(packet);
 	};
 

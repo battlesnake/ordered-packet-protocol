@@ -6,7 +6,7 @@ const onError = err => (console.error(err), process.exit(0));
 const fudge = f => setTimeout(f, Math.random() * 100);
 
 const server = new Server({ port: 'test' });
-const client = new Client({ port: 'test' });
+const client = new Client({ port: 'test' }, 'yay!');
 
 client.on('send', packet => process.nextTick(() => server.write(packet)));
 server.on('send', packet => process.nextTick(() => client.write(packet)));
@@ -29,8 +29,8 @@ client.on('open', () => {
 	});
 });
 
-server.on('accept', con => {
-	console.info('SERVER ACCEPT');
+server.on('accept', (con, data) => {
+	console.info('SERVER ACCEPT', data);
 	con.on('message', msg => {
 		console.log('SERVER RECEIVE', msg.text);
 		con.send({ text: 'world' });
