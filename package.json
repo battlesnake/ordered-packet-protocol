@@ -1,6 +1,6 @@
 {
   "name": "order-preserving-protocol",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Order-preserving packet-orientated protocol",
   "main": "index.js",
   "scripts": {
