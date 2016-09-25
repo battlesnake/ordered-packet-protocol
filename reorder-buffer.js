@@ -56,11 +56,11 @@ function ReorderBuffer(opts) {
 	const write = wrapped => {
 		const seq = wrapped.seq;
 		if (typeof seq !== 'number') {
-			return;
+			return false;
 		}
 		if (seq_notBefore(rx_seq, seq)) {
 			/* Discard, is probably a duplicate of an old packet */
-			return;
+			return false;
 		}
 		rob[seq] = wrapped.data;
 		pending++;
@@ -71,7 +71,7 @@ function ReorderBuffer(opts) {
 			}
 			this.emit('error', new Error('Too many pending packets'));
 			this.emit('close');
-			return;
+			return false;
 		}
 		if (seq === rx_seq) {
 			do {
@@ -84,6 +84,7 @@ function ReorderBuffer(opts) {
 		} else if (this.debug) {
 			console.info('ROB: ' + pending + ' packets pending');
 		}
+		return true;
 	};
 
 	this.send = send;

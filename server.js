@@ -50,12 +50,12 @@ function Server(opts) {
 
 	const write = packet => {
 		if (!packet) {
-			return;
+			return false;
 		}
 		const data = ReorderBuffer.peek(packet);
 		/* Packet must have correct port set */
 		if (!data || data.port !== port) {
-			return;
+			return false;
 		}
 		/* Pass packet to client connection if appropriate */
 		if (data.cookie && data.type !== 'syn') {
@@ -64,12 +64,13 @@ function Server(opts) {
 		}
 		/* Server must be active and packet must be SYN and first of sequence */
 		if (!active || data.type !== 'syn' || !ReorderBuffer.isFirst(packet)) {
-			return;
+			return false;
 		}
 		/* Create connection if no connection with that cookie exists */
 		const { keepAliveInterval, idleTimeout, cookie } = data;
 		if (conGet(cookie)) {
-			throw new Error('Duplicate connection key');
+			this.emit('error', 'Duplicate connection key');
+			return false;
 		}
 		const con = new Connection({ cookie, keepAliveInterval, idleTimeout });
 		connections.push(con);
@@ -83,7 +84,7 @@ function Server(opts) {
 		con.on('send', packet => this.emit('send', packet, con));
 		con.on('open', data => this.emit('accept', con, data.data.data));
 		this.emit('pre-accept', con, data.data.data);
-		con.write(packet);
+		return con.write(packet);
 	};
 
 	const start = () => {

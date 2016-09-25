@@ -165,9 +165,9 @@ function Connection(opts, data) {
 	/* Receive a packet */
 	const write = data => {
 		if (ReorderBuffer.peek(data).cookie !== cookie || state === 'closed') {
-			return;
+			return false;
 		}
-		rob.write(data);
+		return rob.write(data);
 	};
 
 	/* Send some data */
