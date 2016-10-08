@@ -21,9 +21,10 @@ const defaultOpts = { };
  *  * pre-accept(connection, data) - A client is establishing a connection
  *  * accept(connection, data) - A client has established a connection
  *  * send(data, connection) - Send a packet to the next layer
+ *  * initdata(connection, data) - TODO document
  */
 
-function Server(opts) {
+function Server(opts, initdata) {
 	EventEmitter.call(this);
 
 	opts = _.defaults({}, opts, defaultOpts);
@@ -72,7 +73,8 @@ function Server(opts) {
 			this.emit('error', 'Duplicate connection key');
 			return false;
 		}
-		const con = new Connection({ cookie, keepAliveInterval, idleTimeout });
+		const con = new Connection({ cookie, keepAliveInterval, idleTimeout },
+			initdata);
 		connections.push(con);
 		/* TODO: Remove listeners on connection close */
 		con.on('close', () => conClosed(cookie));
@@ -82,7 +84,8 @@ function Server(opts) {
 			}
 		});
 		con.on('send', packet => this.emit('send', packet, con));
-		con.on('open', data => this.emit('accept', con, data.data.data));
+		con.on('open', data => this.emit('accept', con, data));
+		con.on('initdata', data => this.emit('initdata', con, data));
 		this.emit('pre-accept', con, data.data.data);
 		return con.write(packet);
 	};

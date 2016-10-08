@@ -1,6 +1,8 @@
 const EventEmitter = require('events').EventEmitter;
 const _ = require('lodash');
 
+const random = require('./random');
+
 const ReorderBuffer = require('./reorder-buffer');
 
 module.exports = Connection;
@@ -30,10 +32,10 @@ const defaultOpts = {
  *    * connectTimeout - timeout for connection to complete
  *    * keepAliveInterval - how often to send keep-alive packets
  *    * idleTimeout - close if no packets are received for this interval
- *  * data: some data a client can send when opening a connection
+ *  * initdata: some initialisation data to send when opening a connection
  *
  * Properties:
- * 	* metadata - User-defined metadata for the connection, default: {}
+ *  * metadata - User-defined metadata for the connection, default: {}
  *
  * Methods:
  *  * getState() - Get state of connection (opening/open/closed/failed)
@@ -44,11 +46,12 @@ const defaultOpts = {
  * Events:
  *  * send(packet) - Transmit a packet to the next layer
  *  * message(data) - Receive data from connection
- *  * open(data) - Connection is now open
+ *  * open(initdata) - Connection is now open
  *  * close() - Connection is now closed
+ *  * initdata(data) - Received initdata from other side (pre-open)
  */
 
-function Connection(opts, data) {
+function Connection(opts, initdata) {
 	EventEmitter.call(this);
 
 	opts = _.defaults({}, opts, defaultOpts);
@@ -57,7 +60,7 @@ function Connection(opts, data) {
 
 	const isServer = !!opts.cookie;
 
-	const cookie = isServer ? opts.cookie : randomKey(40);
+	const cookie = isServer ? opts.cookie : random.key(8);
 
 	if (!cookie && typeof port !== 'string') {
 		throw new Error('Port must be a string');
@@ -133,7 +136,8 @@ function Connection(opts, data) {
 	const open = () => {
 		setConnectionTimer();
 		if (!isServer) {
-			transmit('syn', { keepAliveInterval, idleTimeout, data });
+			transmit('syn', { keepAliveInterval, idleTimeout, initdata });
+			initdata = null;
 		}
 	};
 
@@ -178,25 +182,41 @@ function Connection(opts, data) {
 		transmit('data', data);
 	};
 
-	let opendata;
+	let remote_initdata;
 
 	/* Bind re-order buffer events */
 	rob.on('message', data => {
 		const type = data.type;
 		if (state === 'opening') {
 			if (isServer) {
+				let r_initdata;
 				switch (type) {
 				case 'syn':
-					opendata = data.data;
-					return transmit('synack');
+					r_initdata = data.data.initdata;
+					/* Store their initdata */
+					this.emit('initdata', r_initdata);
+					remote_initdata = r_initdata;
+					/* Transmit our initdata */
+					transmit('synack', { initdata });
+					return;
 				case 'ack':
-					const _opendata = opendata;
-					opendata = null;
-					return opened(_opendata);
+					/* Connection open
+					 * Clear our copy of the remote initdata when notifying
+					 */
+					r_initdata = remote_initdata;
+					remote_initdata = null;
+					return opened(r_initdata);
 				}
 			} else {
 				switch (type) {
-				case 'synack': return transmit('ack'), opened();
+				case 'synack':
+					const r_initdata = data.data.initdata;
+					/* Notify with their initdata */
+					this.emit('initdata', r_initdata);
+					/* Connection open */
+					transmit('ack');
+					opened(r_initdata);
+					return;
 				}
 			}
 		} else if (state === 'open') {
@@ -245,22 +265,3 @@ Connection.peek = packet => {
 		return;
 	}
 };
-
-/* Helper functions for cookie generation */
-
-function randomByte() {
-	return Math.floor(Math.random() * 256);
-}
-
-function byteToHex(b) {
-	const hex = '0123456789abcdef';
-	return hex[b >> 4 & 0xf] + hex[b & 0xf];
-}
-
-function randomKey(bytes) {
-	let s = '';
-	for (let i = 0; i < bytes; i++) {
-		s += byteToHex(randomByte());
-	}
-	return s;
-}
