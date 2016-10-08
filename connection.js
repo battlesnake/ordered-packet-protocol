@@ -1,7 +1,7 @@
 const EventEmitter = require('events').EventEmitter;
 const _ = require('lodash');
 
-const random = require('./random');
+const randChars = require('random').chars();
 
 const ReorderBuffer = require('./reorder-buffer');
 
@@ -60,7 +60,8 @@ function Connection(opts, initdata) {
 
 	const isServer = !!opts.cookie;
 
-	const cookie = isServer ? opts.cookie : random.key(8);
+	/* ~6 bits of entropy per char */
+	const cookie = isServer ? opts.cookie : randChars(8);
 
 	if (!cookie && typeof port !== 'string') {
 		throw new Error('Port must be a string');
