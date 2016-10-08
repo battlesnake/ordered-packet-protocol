@@ -188,6 +188,9 @@ function Connection(opts, initdata) {
 	/* Bind re-order buffer events */
 	rob.on('message', data => {
 		const type = data.type;
+		if (process.env.DEBUG_OPP) {
+			console.info(isServer ? 'server' : 'client', cookie, state, type);
+		}
 		if (state === 'opening') {
 			if (isServer) {
 				let r_initdata;
