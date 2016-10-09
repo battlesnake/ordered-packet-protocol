@@ -228,7 +228,7 @@ function Connection(opts, initdata) {
 			switch (type) {
 			case 'ack': return;
 			case 'fin': return close();
-			case 'data': return this.emit('message', data.data);
+			case 'data': return process.nextTick(() => this.emit('message', data.data));
 			}
 		}
 		console.warn('Unexpected/unknown packet type: ' + data.type);
